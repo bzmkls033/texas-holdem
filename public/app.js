@@ -217,7 +217,13 @@ socket.on('playerLeft', (data) => {
 });
 
 socket.on('playerReady', (data) => {
-  // 更新玩家准备状态
+  // 更新玩家准备状态 - 重新获取游戏状态
+  socket.emit('getGameState', (state) => {
+    if (state) {
+      gameState = state;
+      updateUI();
+    }
+  });
 });
 
 socket.on('disconnect', () => {

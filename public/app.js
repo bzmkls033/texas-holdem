@@ -387,10 +387,11 @@ function updateMyInfo() {
   // 是否轮到我
   isMyTurn = gameState.currentPlayer === myPlayerId;
   
-  // 更新我的手牌显示
+  // 更新我的手牌显示（使用 myCards，而不是 seats 中的 cards）
   const myCardsContainer = document.querySelector('.my-cards .cards-container');
-  if (mySeat.cards && mySeat.cards.length === 2) {
-    myCardsContainer.innerHTML = mySeat.cards.map(card => 
+  const myCards = gameState.myCards || [];
+  if (myCards.length === 2) {
+    myCardsContainer.innerHTML = myCards.map(card => 
       `<div class="card card-front ${getCardColor(card)}">${card.value}${card.suit}</div>`
     ).join('');
   } else {

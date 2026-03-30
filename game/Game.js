@@ -529,10 +529,25 @@ class Game {
         const player = this.players.get(playerId);
         if (!player) return null;
         
+        // 底牌逻辑：只在摊牌阶段且玩家未弃牌时才显示
+        let visibleCards = [];
+        if (this.phase === 'showdown' && !player.folded) {
+          visibleCards = player.cards;
+        }
+        
         return {
-          ...player.toJSON(),
-          // 不显示其他玩家的手牌（除非在摊牌阶段）
-          cards: player.folded ? [] : player.cards
+          id: player.id,
+          name: player.name,
+          seatIndex: player.seatIndex,
+          chips: player.chips,
+          cards: visibleCards,  // 只有摊牌时才显示
+          bet: player.bet,
+          folded: player.folded,
+          allIn: player.allIn,
+          isDealer: player.isDealer,
+          isSmallBlind: player.isSmallBlind,
+          isBigBlind: player.isBigBlind,
+          lastAction: player.lastAction
         };
       }),
       players: [...this.players.values()].map(p => ({

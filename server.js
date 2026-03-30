@@ -95,10 +95,14 @@ io.on('connection', (socket) => {
       // 通知所有人有新玩家加入
       io.to(roomId).emit('playerJoined', {
         player: result.player.toJSON(),
-        playerCount: game.playerCount
+        playerCount: game.playerCount,
+        isSpectator: result.isSpectator  // 通知是否为观战者
       });
       
-      callback({ success: true, seatIndex: result.seatIndex });
+      // 立即发送完整游戏状态
+      game.broadcastState();
+      
+      callback({ success: true, seatIndex: result.seatIndex, isSpectator: result.isSpectator });
     } else {
       callback(result);
     }

@@ -78,6 +78,9 @@ elements.joinBtn.addEventListener('click', () => {
   socket.emit('joinRoom', { roomId, playerName }, (result) => {
     if (result.success) {
       mySeatIndex = result.seatIndex;
+      if (result.isSpectator) {
+        showToast('游戏正在进行中，您将作为观战者等待下一局');
+      }
       showGame();
     } else {
       showToast(result.message);
@@ -100,6 +103,9 @@ elements.createBtn.addEventListener('click', () => {
       socket.emit('joinRoom', { roomId: result.roomId, playerName }, (joinResult) => {
         if (joinResult.success) {
           mySeatIndex = joinResult.seatIndex;
+          if (joinResult.isSpectator) {
+            showToast('游戏正在进行中，您将作为观战者等待下一局');
+          }
           showGame();
         } else {
           showToast(joinResult.message);
@@ -208,12 +214,23 @@ socket.on('gameState', (state) => {
 });
 
 socket.on('playerJoined', (data) => {
-  showToast(`${data.player.name} 加入了房间`);
+  if (data.isSpectator && data.player.id === myPlayerId) {
+    showToast('游戏正在进行中，您将作为观战者等待下一局');
+  } else {
+    showToast(`${data.player.name} 加入了房间`);
+  }
   updatePlayerCount(data.playerCount);
 });
 
 socket.on('playerLeft', (data) => {
   showToast('有玩家离开了房间');
+  // 立即刷新状态
+  socket.emit('getGameState', (state) => {
+    if (state) {
+      gameState = state;
+      updateUI();
+    }
+  });
 });
 
 socket.on('playerReady', (data) => {
@@ -406,14 +423,29 @@ function updateActionPanel() {
   const mySeat = findMySeat();
   if (!mySeat) return;
   
+  // 观战者模式
+  if (mySeat.isSpectator) {
+    elements.readyPanel.classList.remove('hidden');
+    elements.gamePanel.classList.add('hidden');
+    elements.winnerPanel.classList.add('hidden');
+    elements.startBtn.classList.add('hidden');
+    elements.readyBtn.disabled = true;
+    elements.readyBtn.textContent = '观战中...等待下一局';
+    return;
+  }
+  
   // 显示/隐藏面板
   if (!gameState.isRunning) {
     elements.readyPanel.classList.remove('hidden');
     elements.gamePanel.classList.add('hidden');
     elements.winnerPanel.classList.add('hidden');
     
+    // 重置准备按钮状态
+    elements.readyBtn.disabled = false;
+    elements.readyBtn.textContent = mySeat.isReady ? '已准备' : '准备游戏';
+    
     // 检查是否可以开始游戏
-    const readyCount = gameState.players.filter(p => p.isReady).length;
+    const readyCount = gameState.players.filter(p => p.isReady && !p.isSpectator).length;
     if (readyCount >= 2 && mySeat.isReady) {
       elements.startBtn.classList.remove('hidden');
     } else {

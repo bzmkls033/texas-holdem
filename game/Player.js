@@ -16,6 +16,7 @@ class Player {
     this.isBigBlind = false;
     this.lastAction = null;
     this.sitOut = false; // 离开座位
+    this.isSpectator = false; // 观战者（中途加入）
   }
 
   reset() {

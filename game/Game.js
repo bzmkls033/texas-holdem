@@ -53,17 +53,27 @@ class Game {
     }
 
     const player = new Player(socketId, playerName, seatIndex);
+    
+    // 如果游戏正在进行中，标记为观战者
+    if (this.isRunning) {
+      player.isSpectator = true;
+      player.isReady = false;
+    }
+    
     this.players.set(socketId, player);
     this.seats[seatIndex] = socketId;
     this.playerCount++;
     this.lastActivity = Date.now();
 
-    return { success: true, player, seatIndex };
+    return { success: true, player, seatIndex, isSpectator: player.isSpectator };
   }
 
   removePlayer(socketId) {
     const player = this.players.get(socketId);
     if (!player) return false;
+
+    const wasCurrentPlayer = this.seats[this.currentPlayerIndex] === socketId;
+    const wasLastRaiser = this.lastRaiseIndex === player.seatIndex;
 
     this.seats[player.seatIndex] = null;
     this.players.delete(socketId);
@@ -74,7 +84,20 @@ class Game {
     if (this.isRunning && player.isInHand()) {
       player.folded = true;
       player.sitOut = true;
+      player.lastAction = 'fold';
+      
+      // 如果离开的是最后加注者，需要找到新的最后加注者
+      if (wasLastRaiser) {
+        this.updateLastRaiseIndex();
+      }
+      
+      // 如果离开的是当前玩家，需要移动到下一个玩家
+      if (wasCurrentPlayer) {
+        this.moveToNextPlayer();
+      }
+      
       this.checkEndCondition();
+      this.broadcastState();
     }
 
     // 如果玩家人数不足，结束游戏
@@ -83,6 +106,15 @@ class Game {
     }
 
     return true;
+  }
+
+  updateLastRaiseIndex() {
+    // 找到最近一个加注的玩家
+    const playersInHand = this.getPlayersInHand();
+    if (playersInHand.length === 0) return;
+    
+    // 如果没有加注者，设置为庄家位置
+    this.lastRaiseIndex = this.dealerIndex;
   }
 
   setPlayerReady(socketId, ready) {
@@ -98,7 +130,14 @@ class Game {
       return { success: false, message: '游戏已在进行中' };
     }
 
-    const readyPlayers = [...this.players.values()].filter(p => p.isReady && p.chips > 0);
+    // 重置所有观战者状态，让他们可以参与新游戏
+    for (const player of this.players.values()) {
+      if (player.isSpectator) {
+        player.isSpectator = false;
+      }
+    }
+
+    const readyPlayers = [...this.players.values()].filter(p => p.isReady && p.chips > 0 && !p.isSpectator);
     if (readyPlayers.length < this.minPlayers) {
       return { success: false, message: '至少需要2名准备好的玩家' };
     }
@@ -344,14 +383,18 @@ class Game {
     const playersInHand = this.getPlayersInHand();
     const activePlayers = playersInHand.filter(p => p.canAct());
 
+    console.log(`[moveToNextPlayer] 当前玩家: ${this.currentPlayerIndex}, lastRaiseIndex: ${this.lastRaiseIndex}, 在局玩家: ${playersInHand.length}, 可行动: ${activePlayers.length}`);
+
     // 如果只剩一个玩家未弃牌
     if (playersInHand.length === 1) {
+      console.log('[moveToNextPlayer] 只剩一个玩家，结束本局');
       this.endHand();
       return;
     }
 
     // 如果没有可行动的玩家
     if (activePlayers.length === 0) {
+      console.log('[moveToNextPlayer] 没有可行动玩家，进入下一阶段');
       this.nextPhase();
       return;
     }
@@ -359,17 +402,21 @@ class Game {
     // 找下一个可行动的玩家
     let attempts = 0;
     let nextIndex = this.currentPlayerIndex;
+    let startIndex = nextIndex;
 
     do {
       nextIndex = (nextIndex + 1) % 8;
       const nextPlayer = this.players.get(this.seats[nextIndex]);
       
-      if (nextPlayer && nextPlayer.canAct() && nextPlayer.isInHand()) {
+      console.log(`[moveToNextPlayer] 检查座位 ${nextIndex}: 玩家=${nextPlayer?.name}, canAct=${nextPlayer?.canAct()}, isInHand=${nextPlayer?.isInHand()}, folded=${nextPlayer?.folded}`);
+      
+      // 严格检查：玩家必须存在、可行动、在局内
+      if (nextPlayer && nextPlayer.canAct() && nextPlayer.isInHand() && !nextPlayer.folded) {
         // 检查是否回到最后加注者
         if (nextIndex === this.lastRaiseIndex) {
           // 翻牌前阶段：大盲有优先权，即使没人加注也可以选择行动
           if (this.phase === 'preflop' && nextPlayer.isBigBlind && !nextPlayer.lastAction) {
-            // 大盲还没行动过，给他机会
+            console.log(`[moveToNextPlayer] 大盲 ${nextPlayer.name} 有优先权`);
             this.currentPlayerIndex = nextIndex;
             this.broadcastState();
             return;
@@ -377,11 +424,13 @@ class Game {
           
           // 检查所有人都已行动且下注相同
           if (this.allBetsEqual()) {
+            console.log('[moveToNextPlayer] 所有人已行动，进入下一阶段');
             this.nextPhase();
             return;
           }
         }
         
+        console.log(`[moveToNextPlayer] 设置下一个玩家: ${nextPlayer.name} (座位 ${nextIndex})`);
         this.currentPlayerIndex = nextIndex;
         this.broadcastState();
         return;
@@ -391,6 +440,7 @@ class Game {
     } while (attempts < 8);
 
     // 如果循环结束，进入下一阶段
+    console.log('[moveToNextPlayer] 循环结束，进入下一阶段');
     this.nextPhase();
   }
 
@@ -419,9 +469,10 @@ class Game {
   }
 
   nextPhase() {
-    // 重置玩家本轮下注
+    // 重置玩家本轮下注和行动记录
     for (const player of this.players.values()) {
       player.bet = 0;
+      player.lastAction = null;  // 关键：重置行动记录
     }
     this.currentBet = 0;
     this.actionCount = 0;
@@ -445,7 +496,7 @@ class Game {
         return;
     }
 
-    // 设置第一个行动玩家（庄家后第一个）
+    // 设置第一个行动玩家（庄家后第一个在局内的玩家）
     this.currentPlayerIndex = this.findNextActivePlayer(this.dealerIndex);
     this.lastRaiseIndex = this.currentPlayerIndex;
 
@@ -556,7 +607,8 @@ class Game {
           bet: player.bet,
           folded: player.folded,
           allIn: player.allIn,
-          isReady: player.isReady,  // 添加准备状态
+          isReady: player.isReady,
+          isSpectator: player.isSpectator,  // 添加观战者状态
           isDealer: player.isDealer,
           isSmallBlind: player.isSmallBlind,
           isBigBlind: player.isBigBlind,

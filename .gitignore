@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+ngrok.zip
+ngrok.exe
+cloudflared.exe
+bore.exe

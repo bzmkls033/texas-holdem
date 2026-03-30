@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>德州扑克 - Texas Hold'em</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 登录/加入房间界面 -->
+  <div id="lobby" class="screen">
+    <div class="lobby-container">
+      <h1>🃏 德州扑克</h1>
+      <p class="subtitle">Texas Hold'em Poker</p>
+      
+      <div class="lobby-form">
+        <div class="form-group">
+          <label for="playerName">你的昵称</label>
+          <input type="text" id="playerName" placeholder="输入昵称" maxlength="12">
+        </div>
+        
+        <div class="form-group">
+          <label for="roomId">房间号</label>
+          <input type="text" id="roomId" placeholder="输入房间号或留空创建新房间" maxlength="6">
+        </div>
+        
+        <div class="button-group">
+          <button id="joinBtn" class="btn btn-primary">加入房间</button>
+          <button id="createBtn" class="btn btn-secondary">创建新房间</button>
+        </div>
+      </div>
+      
+      <div class="rules-preview">
+        <h3>📋 游戏规则</h3>
+        <ul>
+          <li>每个玩家发2张底牌</li>
+          <li>5张公共牌（翻牌3张、转牌1张、河牌1张）</li>
+          <li>用最佳5张牌组成牌型</li>
+          <li>支持2-8人游戏</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 游戏界面 -->
+  <div id="game" class="screen hidden">
+    <!-- 顶部信息栏 -->
+    <div class="game-header">
+      <div class="room-info">
+        <span class="room-id">房间: <strong id="currentRoomId">------</strong></span>
+        <span class="player-count">玩家: <strong id="playerCount">0</strong>/8</span>
+      </div>
+      <div class="game-info">
+        <span class="phase">阶段: <strong id="currentPhase">等待中</strong></span>
+        <span class="pot">底池: <strong id="potAmount">0</strong></span>
+      </div>
+      <button id="leaveBtn" class="btn btn-danger btn-small">离开房间</button>
+    </div>
+
+    <!-- 游戏桌面 -->
+    <div class="poker-table">
+      <!-- 玩家座位 (8个位置围绕桌子) -->
+      <div class="seat seat-0" data-seat="0">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-1" data-seat="1">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-2" data-seat="2">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-3" data-seat="3">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-4" data-seat="4">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-5" data-seat="5">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-6" data-seat="6">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+      
+      <div class="seat seat-7" data-seat="7">
+        <div class="player-card">
+          <div class="player-info">
+            <span class="player-name">等待玩家</span>
+            <span class="player-chips">💰 0</span>
+          </div>
+          <div class="player-status"></div>
+          <div class="player-cards">
+            <div class="card card-back">?</div>
+            <div class="card card-back">?</div>
+          </div>
+          <div class="player-bet"></div>
+        </div>
+      </div>
+
+      <!-- 中间公共牌区域 -->
+      <div class="community-area">
+        <div class="community-cards">
+          <div class="card card-empty">-</div>
+          <div class="card card-empty">-</div>
+          <div class="card card-empty">-</div>
+          <div class="card card-empty">-</div>
+          <div class="card card-empty">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 我的牌和操作区 -->
+    <div class="my-area">
+      <div class="my-cards">
+        <h3>我的手牌</h3>
+        <div class="cards-container">
+          <div class="card card-back">?</div>
+          <div class="card card-back">?</div>
+        </div>
+      </div>
+      
+      <div class="action-panel">
+        <!-- 准备阶段 -->
+        <div id="readyPanel" class="action-group">
+          <button id="readyBtn" class="btn btn-success">准备游戏</button>
+          <button id="startBtn" class="btn btn-primary hidden">开始游戏</button>
+        </div>
+        
+        <!-- 游戏操作 -->
+        <div id="gamePanel" class="action-group hidden">
+          <div class="chip-info">
+            <span>我的筹码: <strong id="myChips">1000</strong></span>
+            <span>当前下注: <strong id="currentBet">0</strong></span>
+          </div>
+          
+          <div class="action-buttons">
+            <button id="foldBtn" class="btn btn-danger">弃牌</button>
+            <button id="checkBtn" class="btn btn-secondary">过牌</button>
+            <button id="callBtn" class="btn btn-primary">跟注</button>
+            <button id="raiseBtn" class="btn btn-success">加注</button>
+            <button id="allInBtn" class="btn btn-warning">全押</button>
+          </div>
+          
+          <div id="raiseSlider" class="raise-control hidden">
+            <input type="range" id="raiseAmount" min="0" max="1000" value="0">
+            <span id="raiseValue">0</span>
+            <button id="confirmRaise" class="btn btn-success btn-small">确认</button>
+            <button id="cancelRaise" class="btn btn-secondary btn-small">取消</button>
+          </div>
+        </div>
+        
+        <!-- 显示赢家 -->
+        <div id="winnerPanel" class="action-group hidden">
+          <div class="winner-info"></div>
+          <button id="nextHandBtn" class="btn btn-primary">下一局</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 消息提示 -->
+    <div id="messageToast" class="toast hidden"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

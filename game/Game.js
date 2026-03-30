@@ -236,8 +236,9 @@ class Game {
     const bbPlayer = [...this.players.values()].find(p => p.isBigBlind);
     if (bbPlayer) {
       this.currentPlayerIndex = this.findNextActivePlayer(bbPlayer.seatIndex);
+      // 大盲是翻牌前阶段的最后加注者
+      this.lastRaiseIndex = bbPlayer.seatIndex;
     }
-    this.lastRaiseIndex = this.currentPlayerIndex;
   }
 
   getActivePlayers() {
@@ -365,8 +366,15 @@ class Game {
       
       if (nextPlayer && nextPlayer.canAct() && nextPlayer.isInHand()) {
         // 检查是否回到最后加注者
-        if (nextIndex === this.lastRaiseIndex || 
-            (this.lastRaiseIndex === -1 && nextIndex === this.currentPlayerIndex)) {
+        if (nextIndex === this.lastRaiseIndex) {
+          // 翻牌前阶段：大盲有优先权，即使没人加注也可以选择行动
+          if (this.phase === 'preflop' && nextPlayer.isBigBlind && !nextPlayer.lastAction) {
+            // 大盲还没行动过，给他机会
+            this.currentPlayerIndex = nextIndex;
+            this.broadcastState();
+            return;
+          }
+          
           // 检查所有人都已行动且下注相同
           if (this.allBetsEqual()) {
             this.nextPhase();
@@ -375,6 +383,7 @@ class Game {
         }
         
         this.currentPlayerIndex = nextIndex;
+        this.broadcastState();
         return;
       }
       

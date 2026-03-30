@@ -506,8 +506,11 @@ class Game {
   }
 
   broadcastState() {
-    const state = this.getState();
-    this.io.to(this.roomId).emit('gameState', state);
+    // 对每个玩家发送个性化状态（包含他们自己的手牌）
+    for (const [socketId, player] of this.players) {
+      const state = this.getPlayerState(socketId);
+      this.io.to(socketId).emit('gameState', state);
+    }
   }
 
   getState() {
@@ -544,6 +547,7 @@ class Game {
           bet: player.bet,
           folded: player.folded,
           allIn: player.allIn,
+          isReady: player.isReady,  // 添加准备状态
           isDealer: player.isDealer,
           isSmallBlind: player.isSmallBlind,
           isBigBlind: player.isBigBlind,

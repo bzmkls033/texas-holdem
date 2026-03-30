@@ -523,6 +523,7 @@ class Game {
       isRunning: this.isRunning,
       smallBlind: this.smallBlind,
       bigBlind: this.bigBlind,
+      playerCount: this.playerCount,
       seats: this.seats.map((playerId, index) => {
         if (!playerId) return null;
         const player = this.players.get(playerId);

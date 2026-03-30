@@ -362,8 +362,20 @@ function updateCommunityCards() {
   container.innerHTML = html;
 }
 
+function findMySeat() {
+  // 通过 playerId 找到自己的座位
+  if (!gameState || !gameState.seats) return null;
+  for (let i = 0; i < gameState.seats.length; i++) {
+    if (gameState.seats[i] && gameState.seats[i].id === myPlayerId) {
+      mySeatIndex = i;  // 更新 mySeatIndex
+      return gameState.seats[i];
+    }
+  }
+  return null;
+}
+
 function updateMyInfo() {
-  const mySeat = gameState.seats[mySeatIndex];
+  const mySeat = findMySeat();
   if (!mySeat) return;
   
   // 我的筹码
@@ -390,7 +402,7 @@ function updateMyInfo() {
 }
 
 function updateActionPanel() {
-  const mySeat = gameState.seats[mySeatIndex];
+  const mySeat = findMySeat();
   if (!mySeat) return;
   
   // 显示/隐藏面板

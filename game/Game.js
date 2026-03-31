@@ -120,21 +120,20 @@ class Game {
   setPlayerReady(socketId, ready) {
     const player = this.players.get(socketId);
     if (player) {
+      // 观战者在游戏进行中不能准备
+      if (player.isSpectator && this.isRunning) {
+        return { success: false, message: '观战者需要等待下一局才能参与' };
+      }
       player.isReady = ready;
       this.lastActivity = Date.now();
+      return { success: true };
     }
+    return { success: false, message: '玩家不存在' };
   }
 
   startGame() {
     if (this.isRunning) {
       return { success: false, message: '游戏已在进行中' };
-    }
-
-    // 重置所有观战者状态，让他们可以参与新游戏
-    for (const player of this.players.values()) {
-      if (player.isSpectator) {
-        player.isSpectator = false;
-      }
     }
 
     const readyPlayers = [...this.players.values()].filter(p => p.isReady && p.chips > 0 && !p.isSpectator);
@@ -178,55 +177,62 @@ class Game {
   }
 
   moveDealer() {
-    const activePlayers = this.getActivePlayers();
-    if (activePlayers.length === 0) return;
+    // 获取所有有筹码且可以参与的玩家
+    const eligiblePlayers = [...this.players.values()].filter(p => p.chips > 0 && !p.sitOut && !p.isSpectator);
+    if (eligiblePlayers.length < 2) return;
 
-    // 找到下一个有筹码的玩家作为庄家
-    let newDealerIndex = this.dealerIndex;
-    let attempts = 0;
-    
-    do {
-      newDealerIndex = (newDealerIndex + 1) % this.seats.length;
-      attempts++;
-    } while ((!this.seats[newDealerIndex] || !this.players.get(this.seats[newDealerIndex])?.chips) && attempts < 8);
-
-    // 重置所有庄家标记
+    // 重置所有庄家/盲注标记
     for (const player of this.players.values()) {
       player.isDealer = false;
       player.isSmallBlind = false;
       player.isBigBlind = false;
     }
 
+    // 找到下一个庄家位置（顺时针移动）
+    let newDealerIndex = this.dealerIndex;
+    let found = false;
+    
+    for (let i = 0; i < 8; i++) {
+      newDealerIndex = (newDealerIndex + 1) % 8;
+      const player = this.players.get(this.seats[newDealerIndex]);
+      if (player && player.chips > 0 && !player.sitOut && !player.isSpectator) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) return;
+
+    // 设置庄家
     const dealerPlayer = this.players.get(this.seats[newDealerIndex]);
     if (dealerPlayer) {
       dealerPlayer.isDealer = true;
       this.dealerIndex = newDealerIndex;
     }
 
-    // 设置小盲和大盲
-    this.setBlinds();
-  }
-
-  setBlinds() {
-    const activePlayers = this.getActivePlayers();
-    if (activePlayers.length < 2) return;
-
-    // 找庄家位置
-    let dealerPos = this.dealerIndex;
-
-    // 小盲: 庄家后第一个有筹码的玩家
-    let sbPos = this.findNextActivePlayer(dealerPos);
-    const sbPlayer = this.players.get(this.seats[sbPos]);
-    if (sbPlayer) {
-      sbPlayer.isSmallBlind = true;
+    // 设置小盲（庄家后第一个有筹码的玩家）
+    let sbIndex = newDealerIndex;
+    for (let i = 0; i < 8; i++) {
+      sbIndex = (sbIndex + 1) % 8;
+      const player = this.players.get(this.seats[sbIndex]);
+      if (player && player.chips > 0 && !player.sitOut && !player.isSpectator) {
+        player.isSmallBlind = true;
+        break;
+      }
     }
 
-    // 大盲: 小盲后第一个有筹码的玩家
-    let bbPos = this.findNextActivePlayer(sbPos);
-    const bbPlayer = this.players.get(this.seats[bbPos]);
-    if (bbPlayer) {
-      bbPlayer.isBigBlind = true;
+    // 设置大盲（小盲后第一个有筹码的玩家）
+    let bbIndex = sbIndex;
+    for (let i = 0; i < 8; i++) {
+      bbIndex = (bbIndex + 1) % 8;
+      const player = this.players.get(this.seats[bbIndex]);
+      if (player && player.chips > 0 && !player.sitOut && !player.isSpectator) {
+        player.isBigBlind = true;
+        break;
+      }
     }
+
+    console.log(`[moveDealer] 庄家: 座位${newDealerIndex}, 小盲: 座位${sbIndex}, 大盲: 座位${bbIndex}`);
   }
 
   findNextActivePlayer(fromPos) {
@@ -236,7 +242,7 @@ class Game {
       const playerId = this.seats[pos];
       if (playerId) {
         const player = this.players.get(playerId);
-        if (player && player.chips > 0 && !player.sitOut) {
+        if (player && player.chips > 0 && !player.sitOut && !player.isSpectator) {
           return pos;
         }
       }
@@ -265,7 +271,8 @@ class Game {
 
   dealHoleCards() {
     for (const player of this.players.values()) {
-      if (player.chips >= 0 && !player.sitOut) {
+      // 只给有筹码、未离开座位、非观战者的玩家发牌
+      if (player.chips > 0 && !player.sitOut && !player.isSpectator) {
         player.cards = this.deck.dealMultiple(2);
       }
     }
@@ -281,7 +288,7 @@ class Game {
   }
 
   getActivePlayers() {
-    return [...this.players.values()].filter(p => p.chips > 0 && !p.sitOut);
+    return [...this.players.values()].filter(p => p.chips > 0 && !p.sitOut && !p.isSpectator);
   }
 
   getPlayersInHand() {
@@ -392,7 +399,7 @@ class Game {
       return;
     }
 
-    // 如果没有可行动的玩家
+    // 如果没有可行动的玩家（全部弃牌或全押），直接进入下一阶段
     if (activePlayers.length === 0) {
       console.log('[moveToNextPlayer] 没有可行动玩家，进入下一阶段');
       this.nextPhase();
@@ -400,11 +407,11 @@ class Game {
     }
 
     // 找下一个可行动的玩家
-    let attempts = 0;
     let nextIndex = this.currentPlayerIndex;
     let startIndex = nextIndex;
+    let foundPlayer = false;
 
-    do {
+    for (let i = 0; i < 8; i++) {
       nextIndex = (nextIndex + 1) % 8;
       const nextPlayer = this.players.get(this.seats[nextIndex]);
       
@@ -412,36 +419,57 @@ class Game {
       
       // 严格检查：玩家必须存在、可行动、在局内
       if (nextPlayer && nextPlayer.canAct() && nextPlayer.isInHand() && !nextPlayer.folded) {
-        // 检查是否回到最后加注者
-        if (nextIndex === this.lastRaiseIndex) {
-          // 翻牌前阶段：大盲有优先权，即使没人加注也可以选择行动
-          if (this.phase === 'preflop' && nextPlayer.isBigBlind && !nextPlayer.lastAction) {
-            console.log(`[moveToNextPlayer] 大盲 ${nextPlayer.name} 有优先权`);
-            this.currentPlayerIndex = nextIndex;
-            this.broadcastState();
-            return;
-          }
-          
-          // 检查所有人都已行动且下注相同
-          if (this.allBetsEqual()) {
-            console.log('[moveToNextPlayer] 所有人已行动，进入下一阶段');
-            this.nextPhase();
-            return;
-          }
+        // 检查是否已经所有人都行动完毕
+        if (this.isRoundComplete(nextPlayer, nextIndex)) {
+          console.log('[moveToNextPlayer] 回合完成，进入下一阶段');
+          this.nextPhase();
+          return;
         }
         
         console.log(`[moveToNextPlayer] 设置下一个玩家: ${nextPlayer.name} (座位 ${nextIndex})`);
         this.currentPlayerIndex = nextIndex;
+        foundPlayer = true;
         this.broadcastState();
         return;
       }
-      
-      attempts++;
-    } while (attempts < 8);
+    }
 
-    // 如果循环结束，进入下一阶段
-    console.log('[moveToNextPlayer] 循环结束，进入下一阶段');
-    this.nextPhase();
+    // 如果没找到可行动的玩家，进入下一阶段
+    if (!foundPlayer) {
+      console.log('[moveToNextPlayer] 未找到可行动玩家，进入下一阶段');
+      this.nextPhase();
+    }
+  }
+
+  // 检查当前回合是否完成
+  isRoundComplete(nextPlayer, nextIndex) {
+    // 翻牌前特殊处理：大盲有优先权
+    if (this.phase === 'preflop' && nextPlayer.isBigBlind && !nextPlayer.lastAction) {
+      return false;
+    }
+
+    // 检查所有在局且未弃牌的玩家是否都已行动且下注相同
+    const playersToCheck = this.getPlayersInHand();
+    
+    for (const player of playersToCheck) {
+      // 全押玩家跳过
+      if (player.allIn) continue;
+      
+      // 检查是否有玩家下注不足或未行动
+      if (player.bet < this.currentBet) {
+        return false;
+      }
+      
+      // 如果玩家没有行动过（除了翻牌前的大盲）
+      if (!player.lastAction) {
+        if (this.phase === 'preflop' && player.isBigBlind) {
+          continue; // 大盲在翻牌前可以没有lastAction
+        }
+        return false;
+      }
+    }
+
+    return true;
   }
 
   allBetsEqual() {
@@ -523,6 +551,14 @@ class Game {
     }
 
     this.isRunning = false;
+    
+    // 重置观战者状态，让他们可以参与下一局
+    for (const player of this.players.values()) {
+      if (player.isSpectator) {
+        player.isSpectator = false;
+      }
+    }
+    
     this.broadcastState();
   }
 
@@ -640,10 +676,12 @@ class Game {
     const player = this.players.get(socketId);
     
     if (player) {
-      state.myCards = player.cards;
+      // 观战者不显示手牌
+      state.myCards = player.isSpectator ? [] : player.cards;
       state.myBet = player.bet;
       state.myChips = player.chips;
-      state.isMyTurn = this.getCurrentPlayer()?.id === socketId;
+      state.isMyTurn = !player.isSpectator && this.getCurrentPlayer()?.id === socketId;
+      state.isSpectator = player.isSpectator;
     }
     
     return state;

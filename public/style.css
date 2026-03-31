@@ -274,6 +274,11 @@ body {
   border-color: #4CAF50;
 }
 
+.player-card.is-spectator {
+  opacity: 0.6;
+  border-color: #9E9E9E;
+}
+
 .player-info {
   display: flex;
   justify-content: space-between;
@@ -382,30 +387,49 @@ body {
 .my-area {
   display: flex;
   gap: 20px;
-  padding: 15px 20px;
-  background: rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(0, 50, 0, 0.4) 0%, rgba(0, 30, 0, 0.6) 100%);
+  border-top: 2px solid rgba(76, 175, 80, 0.5);
 }
 
 .my-cards {
   flex: 0 0 auto;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
+  padding: 15px 20px;
+  border: 2px solid rgba(255, 215, 0, 0.3);
 }
 
 .my-cards h3 {
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #aaa;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: #FFD700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .cards-container {
   display: flex;
-  gap: 10px;
+  gap: 15px;
 }
 
 .cards-container .card {
-  width: 60px;
-  height: 85px;
-  font-size: 20px;
+  width: 80px;
+  height: 112px;
+  font-size: 24px;
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  animation: cardGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes cardGlow {
+  from {
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.2);
+  }
+  to {
+    box-shadow: 0 4px 30px rgba(255, 215, 0, 0.5);
+  }
 }
 
 .action-panel {
@@ -570,12 +594,21 @@ body {
 
   .my-area {
     flex-direction: column;
+    padding: 15px;
+  }
+
+  .my-cards {
+    padding: 10px 15px;
+  }
+
+  .my-cards h3 {
+    font-size: 14px;
   }
 
   .cards-container .card {
-    width: 50px;
-    height: 70px;
-    font-size: 16px;
+    width: 65px;
+    height: 91px;
+    font-size: 18px;
   }
 
   .action-buttons {

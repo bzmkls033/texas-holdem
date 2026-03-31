@@ -243,6 +243,10 @@ socket.on('playerReady', (data) => {
   });
 });
 
+socket.on('readyFailed', (data) => {
+  showToast(data.message);
+});
+
 socket.on('disconnect', () => {
   showToast('与服务器断开连接');
   showLobby();
@@ -328,7 +332,9 @@ function updateSeats() {
     betEl.textContent = playerData.bet > 0 ? `下注: ${playerData.bet}` : '';
     
     // 牌
-    if (playerData.cards && playerData.cards.length === 2) {
+    if (playerData.isSpectator) {
+      cardsEl.innerHTML = '<span style="color:#888;font-size:11px;">观战</span>';
+    } else if (playerData.cards && playerData.cards.length === 2) {
       cardsEl.innerHTML = playerData.cards.map(card => 
         `<div class="card card-front ${getCardColor(card)}">${card.value}${card.suit}</div>`
       ).join('');
@@ -353,6 +359,13 @@ function updateSeats() {
       playerCard.classList.add('folded');
     } else {
       playerCard.classList.remove('folded');
+    }
+    
+    // 观战者状态
+    if (playerData.isSpectator) {
+      playerCard.classList.add('is-spectator');
+    } else {
+      playerCard.classList.remove('is-spectator');
     }
     
     // 标记自己
@@ -423,8 +436,8 @@ function updateActionPanel() {
   const mySeat = findMySeat();
   if (!mySeat) return;
   
-  // 观战者模式
-  if (mySeat.isSpectator) {
+  // 观战者模式（仅在游戏进行中）
+  if (mySeat.isSpectator && gameState.isRunning) {
     elements.readyPanel.classList.remove('hidden');
     elements.gamePanel.classList.add('hidden');
     elements.winnerPanel.classList.add('hidden');

@@ -137,11 +137,16 @@ io.on('connection', (socket) => {
     
     const game = rooms.get(roomId);
     if (game) {
-      game.setPlayerReady(socket.id, ready);
-      io.to(roomId).emit('playerReady', { 
-        playerId: socket.id, 
-        ready 
-      });
+      const result = game.setPlayerReady(socket.id, ready);
+      if (result.success) {
+        io.to(roomId).emit('playerReady', { 
+          playerId: socket.id, 
+          ready 
+        });
+      } else {
+        // 通知玩家准备失败的原因
+        socket.emit('readyFailed', { message: result.message });
+      }
     }
   });
 
